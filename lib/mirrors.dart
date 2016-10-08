@@ -1,7 +1,11 @@
 import 'dart:mirrors';
 import 'dart:typed_data';
 
+import 'src/runtime.dart';
 import 'typed_struct.dart';
+
+export 'src/runtime.dart'
+    show int8, int16, int32, int64, uint8, uint16, uint32, uint64;
 export 'typed_struct.dart';
 
 /// A struct implementation that uses `dart:mirrors` at runtime.
@@ -12,43 +16,47 @@ export 'typed_struct.dart';
 /// __Example use__:
 ///     import 'package:typed_struct/mirrors.dart';
 ///
-///     @struct
 ///     abstract class SimpleStruct {
-///       factory SimpleStruct() = _SimpleStructImpl;
+///       factory SimpleStruct() = _AutoSimpleStruct;
 ///
-///       @int8
+///       @uint8
 ///       int myChar;
 ///
-///       @int16
+///       @uint16
 ///       int myShort;
 ///
-///       @int32
+///       @uint32
 ///       int myInt;
 ///     }
 ///
-///     class _SimpleStructImpl extends MirrorsStruct implements SimpleStruct {}
-abstract class MirrorsStruct implements Struct {
-  ByteData _buffer;
-  Map<Symbol, _FixedIntField> _fields = <Symbol, _FixedIntField>{};
+///     class _AutoSimpleStruct extends AutoStruct implements SimpleStruct {}
+abstract class AutoStruct implements Struct {
+  final Map<Symbol, ScopedField> _fields = <Symbol, ScopedField>{};
 
-  /// Initializes a mirrors-based [Struct].
-  MirrorsStruct() {
-    final mirror = reflect(this).type.superinterfaces.first;
-    var totalSize = 0;
-    mirror.declarations.forEach((name, mirror) {
-      FixedInt type = mirror.metadata.firstWhere((mirror) {
-        return mirror.reflectee is FixedInt;
-      }, orElse: () => null)?.reflectee;
-      if (type == null) {
-        return;
-      }
-      _fields[name] = new _FixedIntField(totalSize, name, type);
-      totalSize += type.bytes;
+  // Memory location for the struct.
+  ByteData _buffer;
+
+  /// Initialize a `struct` automatically using `dart:mirrors`.
+  AutoStruct() {
+    final clazz = reflect(this).type.superinterfaces.first;
+
+    // Compute total amount of space required for this struct, create memory.
+    final declarations = clazz.declarations;
+    final totalSize = declarations.values.fold/*<int>*/(0, (size, mirror) {
+      final field = _field(mirror);
+      return size + (field?.size ?? 0);
     });
-    if (totalSize == 0) {
-      throw new UnsupportedError('At least one annotated field is required');
-    }
     _buffer = new ByteData(totalSize);
+
+    // Create a runtime structure to use to lookup field configuration.
+    var offset = 0;
+    declarations.forEach((name, mirror) {
+      final field = _field(mirror);
+      if (field != null) {
+        _fields[name] = field.scope(_buffer, offset);
+        offset += field.size;
+      }
+    });
   }
 
   @override
@@ -56,52 +64,57 @@ abstract class MirrorsStruct implements Struct {
 
   @override
   set buffer(ByteBuffer buffer) {
+    if (buffer.lengthInBytes != _buffer.lengthInBytes) {
+      throw new ArgumentError(
+          'Expected buffer of ${_buffer.lengthInBytes} bytes, '
+          'got ${buffer.lengthInBytes}');
+    }
     _buffer = new ByteData.view(buffer);
+    _fields.forEach((name, field) {
+      _fields[name] = field.scope(_buffer);
+    });
   }
 
   @override
   noSuchMethod(Invocation invocation) {
-    final memberNameEq = MirrorSystem.getSymbol(
-        MirrorSystem.getName(invocation.memberName).replaceAll('=', ''));
-    if (invocation.isAccessor && _fields.containsKey(memberNameEq)) {
-      if (invocation.isGetter) {
-        return _get(_fields[invocation.memberName]);
+    var memberName = invocation.memberName;
+    if (invocation.isAccessor) {
+      if (invocation.isSetter) {
+        var name = MirrorSystem.getName(memberName);
+        name = name.substring(0, name.length - 1);
+        memberName = MirrorSystem.getSymbol(name);
       }
-      final value = invocation.positionalArguments.first;
-      return _set(_fields[memberNameEq], value);
+      final field = _fields[memberName];
+      if (field == null) {
+        final method = MirrorSystem.getName(memberName);
+        throw new UnsupportedError('Cannot implement "$method"');
+      }
+      if (invocation.isGetter) {
+        return field.read();
+      } else {
+        return field.write(invocation.positionalArguments.first);
+      }
     }
-  }
-
-  _get(_FixedIntField field) {
-    switch (field.type) {
-      case int8:
-        return _buffer.getUint8(field.offset);
-      case int16:
-        return _buffer.getUint16(field.offset);
-      case int32:
-        return _buffer.getUint32(field.offset);
-    }
-  }
-
-  _set(_FixedIntField field, value) {
-    switch (field.type) {
-      case int8:
-        _buffer.setUint8(field.offset, value);
-        break;
-      case int16:
-        _buffer.setUint16(field.offset, value);
-        break;
-      case int32:
-        _buffer.setUint32(field.offset, value);
-        break;
-    }
+    final method = MirrorSystem.getName(memberName);
+    throw new UnsupportedError('Cannot implement "$method"');
   }
 }
 
-class _FixedIntField {
-  final int offset;
-  final Symbol name;
-  final FixedInt type;
-
-  _FixedIntField(this.offset, this.name, this.type);
+Field _field(DeclarationMirror field) {
+  final metadata = field.metadata
+      .where((mirror) {
+        return mirror.reflectee is Field;
+      })
+      .map/*<Field>*/((mirror) => mirror.reflectee)
+      .toList(growable: false);
+  if (metadata.length > 1) {
+    final name = MirrorSystem.getName(field.simpleName);
+    final line = field.location.line;
+    final col = field.location.column;
+    throw new FormatException(
+      '$name: Must have exactly one field annotation {$line:$col}',
+      field.location.sourceUri.toString(),
+    );
+  }
+  return metadata.isEmpty ? null : metadata.first;
 }

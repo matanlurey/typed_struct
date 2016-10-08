@@ -6,25 +6,25 @@ import 'package:test/test.dart';
 /// An example struct.
 abstract class SimpleStruct implements Struct {
   /// Create a new struct.
-  factory SimpleStruct() = _SimpleStructImpl;
+  factory SimpleStruct() = _AutoSimpleStruct;
 
   /// A single character.
-  @int8
+  @uint8
   int myChar;
 
   /// A short integer.
-  @int16
+  @uint16
   int myShort;
 
   /// An integer.
-  @int32
+  @uint32
   int myInt;
 }
 
-class _SimpleStructImpl extends MirrorsStruct implements SimpleStruct {}
+class _AutoSimpleStruct extends AutoStruct implements SimpleStruct {}
 
 void main() {
-  group('$MirrorsStruct', () {
+  group('$AutoStruct', () {
     test('should work for a simple use case', () {
       var simple = new SimpleStruct();
       simple.myChar = 'a'.codeUnitAt(0);
