@@ -33,6 +33,15 @@ class _Struct {
   const _Struct();
 }
 
+/// Optional: annotate a `part` directive where to generate code for [struct]:
+///     @Codegen(Animal)
+///     part 'struct.g.dart';
+class Codegen {
+  final Type struct;
+
+  const Codegen(this.struct);
+}
+
 /// Optional interface for making [ByteBuffer] encoding part of the public API.
 abstract class AsByteBuffer {
   ByteBuffer asByteBuffer();
