@@ -1,9 +1,9 @@
 name: typed_struct
-version: 0.1.0-dev
+version: 0.2.0
 description: Typed data structures in Dart.
 authors:
   - Matan Lurey <matanl@google.com>
-homepage: https://github.com/matanlurey/struct
+homepage: https://github.com/matanlurey/typed_struct
 dev_dependencies:
   dart_style:
   test:

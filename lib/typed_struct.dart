@@ -1,50 +1,39 @@
 import 'dart:typed_data';
 
-/// Model c-like structs in Dart backed by the `dart:typed_data` library.
-///
-/// Use `@struct` to annotate a `class` element for code generation:
-///     library simple_struct;
-///
-///     import 'package:struct/typed_struct.dart';
-///
-///     // Where your struct is generated.
-///     part 'simple_struct.g.dart';
-///
-///     abstract class SimpleStruct implements Struct {
-///       factory SimpleStruct() = $SimpleStruct;
-///
-///       @int8
-///       int myChar;
-///
-///       @int16
-///       int myShort;
-///
-///       @int32
-///       int myInt;
-///     }
-///
-/// See `package:struct/mirrors.dart` for a simple implementation using mirrors.
-abstract class Struct {
-  /// Backing buffer.
-  ByteBuffer get buffer;
+// Runtime API that is re-used as annotations for fields.
+export 'src/runtime.dart'
+    show Chars, int8, int16, int32, int64, uint8, uint16, uint32, uint64;
 
-  /// Sets the backing [buffer].
-  set buffer(ByteBuffer buffer);
+/// `C`-like structs in Dart backed by efficient data structures for transfer.
+///
+/// Annotate a class with `@struct` to implement an `abstract class`:
+///     library animal;
+///
+///     import 'package:typed_struct/typed_struct.dart';
+///
+///     // Where your struct is generated when using compiled code generation.
+///     part 'animal.g.dart';
+///
+///     @struct
+///     abstract class Animal {
+///       /// Create a new [Animal], optionally from a byte [buffer].
+///       ///
+///       /// Redirects to a generated class from `animal.g.dart`.
+///       factory Animal([ByteBuffer buffer]) = _Animal$Struct;
+///
+///       @uint8
+///       int age;
+///
+///       @Chars(32)
+///       String name;
+///     }
+const struct = const _Struct();
+
+class _Struct {
+  const _Struct();
 }
 
-/// A 8-bit (character).
-const int8 = const FixedInt._(8);
-
-/// A 16-bit integer (short).
-const int16 = const FixedInt._(16);
-
-/// A 32-bit integer.
-const int32 = const FixedInt._(32);
-
-/// A fixed-size integer decorator, such as [int8], [int16], [int32].
-class FixedInt {
-  /// Number of bytes.
-  final int bytes;
-
-  const FixedInt._(this.bytes);
+/// Optional interface for making [ByteBuffer] encoding part of the public API.
+abstract class AsByteBuffer {
+  ByteBuffer asByteBuffer();
 }
