@@ -6,7 +6,7 @@ library typed_struct.runtime;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:utf/utf.dart';
+import 'package:charcode/charcode.dart';
 
 part 'runtime/int.dart';
 part 'runtime/string.dart';

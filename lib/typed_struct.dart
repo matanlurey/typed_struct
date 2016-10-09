@@ -1,33 +1,39 @@
 import 'dart:typed_data';
 
-/// Model c-like structs in Dart backed by the `dart:typed_data` library.
+// Runtime API that is re-used as annotations for fields.
+export 'src/runtime.dart'
+    show Chars, int8, int16, int32, int64, uint8, uint16, uint32, uint64;
+
+/// `C`-like structs in Dart backed by efficient data structures for transfer.
 ///
-/// Implement [Struct] to annotate a `class` element for code generation:
-///     library simple_struct;
+/// Annotate a class with `@struct` to implement an `abstract class`:
+///     library animal;
 ///
 ///     import 'package:typed_struct/typed_struct.dart';
 ///
-///     // Where your struct is generated.
-///     part 'simple_struct.g.dart';
+///     // Where your struct is generated when using compiled code generation.
+///     part 'animal.g.dart';
 ///
-///     abstract class SimpleStruct implements Struct {
-///       factory SimpleStruct() = _SimpleStruct$Generated;
+///     @struct
+///     abstract class Animal {
+///       /// Create a new [Animal], optionally from a byte [buffer].
+///       ///
+///       /// Redirects to a generated class from `animal.g.dart`.
+///       factory Animal([ByteBuffer buffer]) = _Animal$Struct;
 ///
 ///       @uint8
-///       int myChar;
+///       int age;
 ///
-///       @uint16
-///       int myShort;
-///
-///       @uint32
-///       int myInt;
+///       @Chars(32)
+///       String name;
 ///     }
-///
-/// See `package:struct/mirrors.dart` for a simple implementation using mirrors.
-abstract class Struct {
-  /// Backing buffer of the struct that can used and sent efficiently.
-  ByteBuffer get buffer;
+const struct = const _Struct();
 
-  /// Sets the backing [buffer] of the struct.
-  set buffer(ByteBuffer buffer);
+class _Struct {
+  const _Struct();
+}
+
+/// Optional interface for making [ByteBuffer] encoding part of the public API.
+abstract class AsByteBuffer {
+  ByteBuffer asByteBuffer();
 }

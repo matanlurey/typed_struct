@@ -4,8 +4,6 @@ import 'dart:typed_data';
 import 'src/runtime.dart';
 import 'typed_struct.dart';
 
-export 'src/runtime.dart'
-    show int8, int16, int32, int64, uint8, uint16, uint32, uint64;
 export 'typed_struct.dart';
 
 /// A struct implementation that uses `dart:mirrors` at runtime.
@@ -30,50 +28,64 @@ export 'typed_struct.dart';
 ///     }
 ///
 ///     class _AutoSimpleStruct extends AutoStruct implements SimpleStruct {}
-abstract class AutoStruct implements Struct {
-  final Map<Symbol, ScopedField> _fields = <Symbol, ScopedField>{};
+abstract class AutoStruct implements AsByteBuffer {
+  static final _cachedTotalSize = new Expando<int>();
+  static final _cachedFields = new Expando<Map<Symbol, Field>>();
+
+  final Map<Symbol, ScopedField> _scopedFields = <Symbol, ScopedField>{};
 
   // Memory location for the struct.
   ByteData _buffer;
 
   /// Initialize a `struct` automatically using `dart:mirrors`.
-  AutoStruct() {
+  AutoStruct([ByteBuffer buffer]) {
+    // Get the original class mirror.
     final clazz = reflect(this).type.superinterfaces.first;
 
     // Compute total amount of space required for this struct, create memory.
-    final declarations = clazz.declarations;
-    final totalSize = declarations.values.fold/*<int>*/(0, (size, mirror) {
-      final field = _field(mirror);
-      return size + (field?.size ?? 0);
-    });
-    _buffer = new ByteData(totalSize);
+    int totalSize = _cachedTotalSize[clazz.reflectedType];
+    if (totalSize == null) {
+      totalSize = clazz.declarations.values.fold/*<int>*/(0, (size, mirror) {
+        final field = _field(mirror);
+        return size + (field?.size ?? 0);
+      });
+      _cachedTotalSize[clazz.reflectedType] = totalSize;
+    }
+
+    // Re-use an existing buffer if specified, otherwise create an empty one.
+    if (buffer != null) {
+      if (buffer.lengthInBytes != totalSize) {
+        throw new ArgumentError(
+          'Expected buffer of $totalSize, got ${buffer.lengthInBytes}',
+        );
+      }
+      _buffer = new ByteData.view(buffer);
+    } else {
+      _buffer = new ByteData(totalSize);
+    }
 
     // Create a runtime structure to use to lookup field configuration.
-    var offset = 0;
-    declarations.forEach((name, mirror) {
-      final field = _field(mirror);
-      if (field != null) {
-        _fields[name] = field.scope(_buffer, offset);
-        offset += field.size;
-      }
-    });
-  }
-
-  @override
-  ByteBuffer get buffer => _buffer.buffer;
-
-  @override
-  set buffer(ByteBuffer buffer) {
-    if (buffer.lengthInBytes != _buffer.lengthInBytes) {
-      throw new ArgumentError(
-          'Expected buffer of ${_buffer.lengthInBytes} bytes, '
-          'got ${buffer.lengthInBytes}');
+    Map<Symbol, Field> fields = _cachedFields[clazz.reflectedType];
+    if (fields == null) {
+      fields = <Symbol, Field> {};
+      clazz.declarations.forEach((name, mirror) {
+        final field = _field(mirror);
+        if (field != null) {
+          fields[name] = field;
+        }
+      });
+      _cachedFields[clazz.reflectedType] = fields;
     }
-    _buffer = new ByteData.view(buffer);
-    _fields.forEach((name, field) {
-      _fields[name] = field.scope(_buffer);
+
+    var offset = 0;
+    fields.forEach((symbol, field) {
+      _scopedFields[symbol] = field.scope(_buffer, offset);
+      offset += field.size;
     });
   }
+
+  @override
+  ByteBuffer asByteBuffer() => _buffer.buffer;
 
   @override
   noSuchMethod(Invocation invocation) {
@@ -84,7 +96,7 @@ abstract class AutoStruct implements Struct {
         name = name.substring(0, name.length - 1);
         memberName = MirrorSystem.getSymbol(name);
       }
-      final field = _fields[memberName];
+      final field = _scopedFields[memberName];
       if (field == null) {
         final method = MirrorSystem.getName(memberName);
         throw new UnsupportedError('Cannot implement "$method"');

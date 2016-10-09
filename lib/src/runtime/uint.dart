@@ -19,7 +19,7 @@ const UnsignedInt uint64 = const _Uint64();
 
 class _Uint8 extends UnsignedInt {
   @override
-  final int size = 8;
+  final int size = 1;
 
   const _Uint8() : super._();
 
@@ -34,7 +34,7 @@ class _Uint8 extends UnsignedInt {
 
 class _Uint16 extends UnsignedInt {
   @override
-  final int size = 16;
+  final int size = 2;
 
   const _Uint16() : super._();
 
@@ -49,7 +49,7 @@ class _Uint16 extends UnsignedInt {
 
 class _Uint32 extends UnsignedInt {
   @override
-  final int size = 32;
+  final int size = 4;
 
   const _Uint32() : super._();
 
@@ -64,7 +64,7 @@ class _Uint32 extends UnsignedInt {
 
 class _Uint64 extends UnsignedInt {
   @override
-  final int size = 64;
+  final int size = 8;
 
   const _Uint64() : super._();
 
