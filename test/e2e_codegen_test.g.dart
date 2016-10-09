@@ -7,7 +7,9 @@ class _Animal$Struct implements Animal {
   final ByteData _buffer;
 
   _Animal$Struct([ByteBuffer buffer])
-      : _buffer = buffer != null ? new ByteData.view(buffer) : new ByteData(totalSize) {
+      : _buffer = buffer != null
+            ? new ByteData.view(buffer)
+            : new ByteData(totalSize) {
     assert(() {
       if (_buffer.lengthInBytes != totalSize) {
         throw new ArgumentError(
