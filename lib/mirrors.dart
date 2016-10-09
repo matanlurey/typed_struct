@@ -67,7 +67,7 @@ abstract class AutoStruct implements AsByteBuffer {
     // Create a runtime structure to use to lookup field configuration.
     Map<Symbol, Field> fields = _cachedFields[clazz.reflectedType];
     if (fields == null) {
-      fields = <Symbol, Field> {};
+      fields = <Symbol, Field>{};
       clazz.declarations.forEach((name, mirror) {
         final field = _field(mirror);
         if (field != null) {
