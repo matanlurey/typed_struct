@@ -17,26 +17,22 @@ communication for Isolates, binary data, and more.
 ```dart
 import 'package:struct/mirrors.dart';
 
-abstract class SimpleStruct implements Struct {
-  factory SimpleStruct() = _SimpleStructImpl;
+abstract class Animal {
+  factory Animal() = _Animal$AutoStruct;
 
   @int8
-  int myChar;
+  int age;
 
-  @int16
-  int myShort;
-
-  @int32
-  int myInt;
+  @Chars(32)
+  String name;
 }
 
-class _SimpleStructImpl extends MirrorsStruct implements SimpleStruct {}
+class _Animal$AutoStruct extends AutoStruct implements Animal {}
 
 void main() {
-  var struct = new SimpleStruct();
-  simple.myChar = 'a'.codeUnitAt(0);
-  simple.myShort = 12;
-  simple.myInt = 34567;
+  var animal = new Animal();
+  animal.age = 5;
+  animal.name = 'Cat';
 }
 ```
 
